@@ -12,10 +12,14 @@
         #canvas { border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 10px 0; transition: transform 1s ease-out; }
         .spinning { transform: rotate(1080deg); }
         
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
-        .option-btn { padding: 12px; border: 2px solid #e67e22; border-radius: 12px; background: white; cursor: pointer; font-weight: bold; color: #e67e22; transition: 0.2s; }
-        .option-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .option-btn.selected { background: #e67e22; color: white; }
+        .list-container { display: flex; flex-direction: column; gap: 8px; margin: 15px auto; width: 200px; }
+        .option-item { padding: 10px; border: 2px solid #e67e22; border-radius: 10px; font-weight: bold; color: #e67e22; background: #fffaf0; }
+        
+        .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
+        .col { display: flex; flex-direction: column; gap: 8px; }
+        .select-btn { padding: 10px; border: 2px solid #e67e22; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #e67e22; }
+        .select-btn.active { background: #e67e22; color: white; }
+        
         .confirm-btn { background-color: #27ae60; color: white; padding: 15px; border: none; border-radius: 25px; width: 100%; font-weight: bold; margin-top: 10px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); } }
         .highlight { color: #d35400; font-weight: bold; font-size: 24px; display: block; margin: 15px 0; }
@@ -26,32 +30,33 @@
     <div class="card">
         <h1 id="title">Step 1: Ingredients</h1>
         <p id="subt">Spin 3 times to build your pool.</p>
-        <canvas id="canvas" width="200" height="200"></canvas>
+        <canvas id="canvas" width="280" height="280"></canvas>
         <div id="uiArea"></div>
-        <button onclick="localStorage.clear(); location.reload();" style="background:none; border:none; color:#95a5a6; font-size: 10px; cursor:pointer; margin-top:20px; text-decoration:underline;">Reset Application</button>
+        <button onclick="localStorage.clear(); location.reload();" style="background:none; border:none; color:#95a5a6; font-size: 10px; cursor:pointer; margin-top:20px; text-decoration:underline;">Reset App</button>
     </div>
 
 <script>
-    const ingredientsList = ["Rice", "Potato", "Tomato", "Nuts", "Chicken", "Beef", "Onion", "Cheese", "Citrus", "Apple", "Pork", "Tofu", "Beans", "Eggplant", "Corn", "Pastry", "Egg", "Honey", "Garlic", "Peppers", "Butter", "Bread"];
+    const ingredientsList = ["Rice", "Potato", "Tomato", "Nuts", "Chicken", "Beef", "Onion", "Cheese", "Citrus", "Apple", "Pork", "Tofu"];
     const countriesList = ["Italian", "Mexican", "Japanese", "Indian", "French", "Thai", "Greek", "Spanish", "Chinese", "Jamaican", "Peruvian", "Vietnamese"];
 
-    let state = JSON.parse(localStorage.getItem('potluck_v2')) || { phase: 1, ings: [], ctries: [], final: null, tempIng: null, tempCtry: null };
+    let state = JSON.parse(localStorage.getItem('potluck_v3')) || { phase: 1, ings: [], ctries: [], final: null, tempIng: null, tempCtry: null };
 
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
     function drawWheel() {
-        ctx.clearRect(0, 0, 200, 200);
-        ctx.fillStyle = state.phase === 1 ? "#e67e22" : "#2980b9";
-        ctx.beginPath(); ctx.arc(100, 100, 90, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "white"; ctx.font = "bold 20px Arial"; ctx.fillText("SPIN", 75, 105);
+        const arc = Math.PI * 2 / 12;
+        ctx.clearRect(0, 0, 280, 280);
+        for (let i = 0; i < 12; i++) {
+            ctx.fillStyle = (state.phase === 1) ? ["#e67e22", "#d35400", "#f39c12", "#e74c3c"][i % 4] : ["#3498db", "#2980b9", "#5dade2", "#2874a6"][i % 4];
+            ctx.beginPath(); ctx.moveTo(140, 140);
+            ctx.arc(140, 140, 135, i * arc, (i + 1) * arc); ctx.fill();
+        }
     }
 
     function spin() {
-        const btn = document.getElementById("spinBtn");
         canvas.classList.add("spinning");
-        if (btn) btn.disabled = true;
-
+        document.getElementById("spinBtn").disabled = true;
         setTimeout(() => {
             canvas.classList.remove("spinning");
             if (state.phase === 1 && state.ings.length < 3) {
@@ -65,7 +70,7 @@
         }, 1000);
     }
 
-    function save() { localStorage.setItem('potluck_v2', JSON.stringify(state)); }
+    function save() { localStorage.setItem('potluck_v3', JSON.stringify(state)); }
 
     function updateUI() {
         drawWheel();
@@ -77,27 +82,26 @@
             const list = state.phase === 1 ? state.ings : state.ctries;
             title.innerText = state.phase === 1 ? "Step 1: Ingredients" : "Step 2: Cuisines";
             subt.innerText = `Collected ${list.length}/3`;
-            ui.innerHTML = `<div class="grid">` + list.map(item => `<div class="option-btn">${item}</div>`).join('') + `</div>`;
+            ui.innerHTML = `<div class="list-container">` + list.map(item => `<div class="option-item">${item}</div>`).join('') + `</div>`;
             
-            if (list.length < 3) ui.innerHTML += `<button id="spinBtn" class="option-btn" style="width:100%" onclick="spin()">🎰 Spin for ${state.phase === 1 ? 'Ingredient' : 'Country'}</button>`;
-            else ui.innerHTML += `<button class="confirm-btn" onclick="state.phase++; save(); updateUI();">Next Step ➔</button>`;
+            if (list.length < 3) ui.innerHTML += `<button id="spinBtn" class="confirm-btn" style="animation:none; background:#e67e22" onclick="spin()">🎰 Spin Wheel</button>`;
+            else ui.innerHTML += `<button class="confirm-btn" onclick="state.phase++; save(); updateUI();">Move to Next Step ➔</button>`;
         } 
         else if (!state.final) {
-            title.innerText = "Final Choice";
-            subt.innerText = !state.tempIng ? "Select one Ingredient:" : "Select one Cuisine:";
-            const choices = !state.tempIng ? state.ings : state.ctries;
-            
-            ui.innerHTML = `<div class="grid">` + choices.map(item => 
-                `<button class="option-btn ${ (state.tempIng === item || state.tempCtry === item) ? 'selected' : ''}" 
-                onclick="${!state.tempIng ? 'state.tempIng' : 'state.tempCtry'}='${item}'; updateUI();">${item}</button>`
-            ).join('') + `</div>`;
+            title.innerText = "Final Decision";
+            subt.innerText = "Select one from each column:";
+            ui.innerHTML = `<div class="matrix">
+                <div class="col"><strong>Ingredients</strong>${state.ings.map(i => `<button class="select-btn ${state.tempIng===i?'active':''}" onclick="state.tempIng='${i}'; updateUI();">${i}</button>`).join('')}</div>
+                <div class="col"><strong>Cuisines</strong>${state.ctries.map(c => `<button class="select-btn ${state.tempCtry===c?'active':''}" onclick="state.tempCtry='${c}'; updateUI();">${c}</button>`).join('')}</div>
+            </div>`;
             
             if (state.tempIng && state.tempCtry) ui.innerHTML += `<button class="confirm-btn" onclick="state.final = state.tempCtry + ' ' + state.tempIng; save(); updateUI();">Lock Selection ✅</button>`;
         } 
         else {
             title.innerText = "Your Potluck Dish";
+            document.getElementById("canvas").style.display = "none";
             ui.innerHTML = `<span class="highlight">${state.final}</span>
-            <button class="confirm-btn" style="background:#3498db" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(state.final + ' recipe')}', '_blank')">Find Recipes ↗</button>`;
+            <button class="confirm-btn" style="background:#3498db" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(state.final + ' recipe')}', '_blank')">🔍 Search Recipes</button>`;
         }
     }
     updateUI();
