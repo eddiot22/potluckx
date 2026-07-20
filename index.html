@@ -8,6 +8,7 @@
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; max-width: 500px; width: 100%; box-sizing: border-box; }
         h1 { color: #2c3e50; margin-top: 0; font-size: 26px; }
         p#subt { color: #7f8c8d; font-size: 14px; margin: -5px 0 15px 0; }
+        
         #map-container { position: relative; width: 100%; height: 200px; background: #ecf0f1; border-radius: 10px; margin: 15px 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         
         /* Map pin animations */
@@ -15,26 +16,15 @@
         .pin.selected-pin { background: #f1c40f; transform: scale(1.5); box-shadow: 0 0 12px #f1c40f; z-index: 10; }
         @keyframes drop { 0% { transform: translateY(-100px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
         
-        /* Option buttons styling */
+        /* Buttons */
         .option-btn { display: block; width: 100%; margin: 8px 0; padding: 14px; border: 2px solid #bdc3c7; border-radius: 12px; background: white; cursor: pointer; font-weight: bold; color: #7f8c8d; font-size: 16px; transition: 0.2s; }
         .option-btn:hover { background: #f8f9fa; border-color: #95a5a6; }
         .option-btn.selected { border-color: #f1c40f; background: #fef9e7; color: #d35400; }
-        
-        /* Action buttons styling */
-        button.action-btn { padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; width: 100%; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        button.action-btn { padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; width: 100%; cursor: pointer; margin-top: 10px; }
         .spin-color { background-color: #2980b9; }
-        .spin-color:hover { background-color: #3498db; }
         .confirm-color { background-color: #27ae60; animation: pulse 1.5s infinite; }
-        .confirm-color:hover { background-color: #2ecc71; }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.5); }
-            70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); }
-        }
-        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.5); } 70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); } 100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); } }
         .highlight { color: #27ae60; font-weight: bold; font-size: 26px; display: block; margin: 15px 0; }
-        .recipe-btn { background-color: #3498db; }
     </style>
 </head>
 <body>
@@ -53,27 +43,19 @@
 
 <script>
     const mapCoords = {
-        "Italian": {x: 48, y: 35}, "Mexican": {x: 20, y: 45}, "Japanese": {x: 88, y: 35},
-        "Indian": {x: 70, y: 45}, "French": {x: 45, y: 32}, "Thai": {x: 78, y: 48},
-        "Greek": {x: 52, y: 36}, "Spanish": {x: 42, y: 36}, "Chinese": {x: 80, y: 35},
+        "Italian": {x: 50, y: 35}, "Mexican": {x: 20, y: 45}, "Japanese": {x: 88, y: 35},
+        "Indian": {x: 70, y: 45}, "French": {x: 47, y: 32}, "Thai": {x: 78, y: 48},
+        "Greek": {x: 53, y: 36}, "Spanish": {x: 44, y: 36}, "Chinese": {x: 80, y: 35},
         "Jamaican": {x: 25, y: 52}, "Peruvian": {x: 30, y: 70}, "Vietnamese": {x: 80, y: 45},
-        "Moroccan": {x: 40, y: 40}, "Brazilian": {x: 35, y: 70}, "South Korean": {x: 85, y: 32},
+        "Moroccan": {x: 42, y: 40}, "Brazilian": {x: 35, y: 70}, "South Korean": {x: 85, y: 32},
         "Malaysian": {x: 78, y: 55}, "Indonesian": {x: 80, y: 60}, "Russian": {x: 65, y: 20},
-        "Argentinian": {x: 32, y: 80}, "American": {x: 15, y: 30}, "German": {x: 48, y: 28}
+        "Argentinian": {x: 32, y: 80}, "American": {x: 15, y: 30}, "German": {x: 49, y: 28}
     };
 
     const ingredients = ["Rice", "Potato", "Tomato", "Nuts", "Chicken", "Beef", "Onion", "Cheese", "Citrus", "Apple", "Pork", "Tofu", "Beans", "Eggplant", "Corn", "Pastry", "Egg", "Honey", "Garlic", "Peppers", "Butter", "Bread"];
     const countries = Object.keys(mapCoords);
 
-    let state = JSON.parse(localStorage.getItem('potluck_state')) || { 
-        step: 1, 
-        ingHistory: [], 
-        countryHistory: [], 
-        finalIng: null, 
-        finalCountry: null 
-    };
-
-    // Keep track of what the user currently clicked on, but has not confirmed yet
+    let state = JSON.parse(localStorage.getItem('potluck_state')) || { step: 1, ingHistory: [], countryHistory: [], finalIng: null, finalCountry: null };
     let temporarySelection = null;
 
     function spin() {
@@ -90,33 +72,24 @@
                 if (!state.countryHistory.includes(c)) { state.countryHistory.push(c); found = true; }
             }
         }
-        temporarySelection = null; // Clear selections on spin
+        temporarySelection = null; 
         saveState();
         updateUI();
     }
 
-    // Handles the temporary selection highlight
-    function tapOption(val) {
-        temporarySelection = val;
-        updateUI();
-    }
+    function tapOption(val) { temporarySelection = val; updateUI(); }
 
-    // Locks the action down and saves when 'Confirm' is pushed
     function confirmSelection() {
         if (!temporarySelection) return;
-        
         if (state.step === 1) state.finalIng = temporarySelection;
         else state.finalCountry = temporarySelection;
-        
         state.step++;
-        temporarySelection = null; // reset for next phase
+        temporarySelection = null;
         saveState();
         updateUI();
     }
 
-    function saveState() {
-        localStorage.setItem('potluck_state', JSON.stringify(state));
-    }
+    function saveState() { localStorage.setItem('potluck_state', JSON.stringify(state)); }
 
     function updateUI() {
         const visual = document.getElementById("visualArea");
@@ -124,27 +97,25 @@
         const action = document.getElementById("actionArea");
         const subt = document.getElementById("subt");
         
-        // Step 3: Game Over / Results
         if (state.step === 3) {
             document.getElementById("title").innerText = "Your Final Choice!";
-            subt.innerText = "Enjoy your potluck concept:";
             visual.innerHTML = `<div style="font-size: 55px; margin: 15px 0;">✨🍽️✨</div>`;
             const url = `https://www.google.com/search?q=${encodeURIComponent(state.finalCountry + " " + state.finalIng + " recipe")}`;
             results.innerHTML = `<span class="highlight">${state.finalCountry} ${state.finalIng}</span>`;
-            action.innerHTML = `<button class="action-btn recipe-btn" onclick="window.open('${url}', '_blank')">🔍 Find Recipes ↗</button>`;
+            action.innerHTML = `<button class="action-btn" style="background:#3498db" onclick="window.open('${url}', '_blank')">🔍 Find Recipes ↗</button>`;
             return;
         }
 
-        // Determine current setup based on phase
         const isStepOne = state.step === 1;
         document.getElementById("title").innerText = isStepOne ? "Step 1: Ingredient" : "Step 2: Cuisine";
         subt.innerText = temporarySelection ? "Looks good! Press confirm below." : `Spin up to 3 times, then tap your favorite.`;
         
-        // Dynamic Graphics Render
         if (isStepOne) {
             visual.innerHTML = `<div style="font-size: 50px; margin: 15px 0;">🎲</div>`;
         } else {
-            visual.innerHTML = `<div id="map-container"><img src="https://upload.wikimedia.org/wikipedia/commons/8/83/World_Map_Blank.svg" style="width:120%; opacity:0.35; pointer-events:none;"></div>`;
+            // Inline SVG World Map
+            const svgMap = `<svg viewBox="0 0 1000 500" style="width:110%; opacity:0.3; pointer-events:none;"><path fill="#34495e" d="M100,100h800v300H100V100z M200,200c0,50,50,50,50,0s-50-50-50,0 M600,200c0,80,100,80,100,0s-100-80-100,0 M300,350c0,30,50,30,50,0s-50-30-50,0 M750,300c0,40,60,40,60,0s-60-40-60,0 M450,250c0,20,30,20,30,0s-30-20-30,0"/></svg>`;
+            visual.innerHTML = `<div id="map-container">${svgMap}</div>`;
             state.countryHistory.forEach(c => {
                 const pin = document.createElement("div");
                 pin.className = `pin ${temporarySelection === c ? 'selected-pin' : ''}`;
@@ -154,16 +125,11 @@
             });
         }
 
-        // Generate Item Option Cards
         let currentList = isStepOne ? state.ingHistory : state.countryHistory;
-        let html = "";
-        currentList.forEach(item => {
-            const isSelected = temporarySelection === item;
-            html += `<button class="option-btn ${isSelected ? 'selected' : ''}" onclick="tapOption('${item}')">${item} ${isSelected ? '✓' : ''}</button>`;
-        });
-        results.innerHTML = html;
+        results.innerHTML = currentList.map(item => 
+            `<button class="option-btn ${temporarySelection === item ? 'selected' : ''}" onclick="tapOption('${item}')">${item} ${temporarySelection === item ? '✓' : ''}</button>`
+        ).join('');
 
-        // Smart Conditional Controls Area
         if (temporarySelection) {
             action.innerHTML = `<button class="action-btn confirm-color" onclick="confirmSelection()">Confirm Selection 👍</button>`;
         } else if (currentList.length < 3) {
@@ -172,7 +138,6 @@
             action.innerHTML = `<p style="color:#e74c3c; font-weight:bold; font-size:14px; margin-top:15px;">Choose one of the options above to continue.</p>`;
         }
     }
-    
     updateUI();
 </script>
 </body>
