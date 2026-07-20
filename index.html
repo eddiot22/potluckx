@@ -3,98 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Potluck Roulette 2.0</title>
+    <title>Potluck Roulette</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #ff9a9e 0%, #ff6a00 100%); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 450px; width: 100%; }
-        h1 { color: #d35400; margin: 0 0 10px 0; font-size: 24px; }
-        #canvas { border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 15px 0; transition: 1s ease-out; }
-        .spinning { transform: rotate(1080deg); }
-        .option-btn { display: block; width: 100%; margin: 8px 0; padding: 12px; border: 2px solid #e67e22; border-radius: 12px; background: white; cursor: pointer; font-weight: bold; color: #e67e22; }
-        .option-btn.selected { background: #e67e22; color: white; }
-        .confirm-btn { background: #27ae60; color: white; padding: 15px; border: none; border-radius: 25px; width: 100%; font-weight: bold; margin-top: 15px; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(39, 174, 96, 0); } }
-        .highlight { color: #d35400; font-size: 22px; font-weight: bold; margin: 10px 0; display: block; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #ff9a9e 0%, #ff6a00 100%); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 450px; width: 100%; box-sizing: border-box; }
+        h1 { color: #d35400; margin-top: 0; font-size: 28px; }
+        #canvas { border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 10px 0; }
+        .results-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; margin: 15px 0; }
+        .option-row { background: white; border: 2px solid #e67e22; border-radius: 12px; cursor: pointer; transition: 0.2s; }
+        .option-row:hover { background: #fff5eb; }
+        .option-row td { padding: 15px 12px; font-weight: bold; color: #e67e22; font-size: 16px; border-top: 2px solid #e67e22; border-bottom: 2px solid #e67e22; }
+        .option-row td:first-child { border-left: 2px solid #e67e22; border-radius: 12px 0 0 12px; }
+        .option-row td:last-child { border-right: 2px solid #e67e22; border-radius: 0 12px 12px 0; text-align: right; }
+        .highlight { color: #d35400; font-weight: bold; font-size: 24px; display: block; margin: 15px 0; }
+        button { padding: 12px 25px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; cursor: pointer; width: 100%; transition: 0.2s; }
+        #spinBtn { background-color: #e67e22; margin-top: 10px; }
+        .copy-btn { background-color: #2ecc71; margin-top: 20px; display: block; width: 100%; box-sizing: border-box; }
+        .recipe-btn { background-color: #3498db; margin-top: 10px; display: block; width: 100%; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h1 id="title">Step 1: Ingredients</h1>
-    <p id="subt">Spin to get 3 ingredient options.</p>
-    <canvas id="canvas" width="200" height="200"></canvas>
-    <div id="uiArea"></div>
-</div>
+    <div class="card">
+        <h1>Potluck Roulette 🎰</h1>
+        <p id="subt">Spin up to 3 times for unique results!</p>
+        <canvas id="canvas" width="280" height="280"></canvas>
+        <div id="resultsArea"></div>
+        <div id="actionArea"></div>
+    </div>
 
 <script>
+    const countries = ["Italian", "Mexican", "Japanese", "Indian", "French", "Thai", "Greek", "Spanish", "Chinese", "Jamaican", "Peruvian", "Vietnamese", "Moroccan", "Brazilian", "South Korean", "Malaysian", "Indonesian", "Russian", "Argentinian", "American", "German"];
     const ingredients = ["Rice", "Potato", "Tomato", "Nuts", "Chicken", "Beef", "Onion", "Cheese", "Citrus", "Apple", "Pork", "Tofu", "Beans", "Eggplant", "Corn", "Pastry", "Egg", "Honey", "Garlic", "Peppers", "Butter", "Bread"];
-    const countries = ["Italian", "Mexican", "Japanese", "Indian", "French", "Thai", "Greek", "Spanish", "Chinese", "Jamaican", "Peruvian", "Vietnamese"];
 
-    let state = JSON.parse(localStorage.getItem('potluck_state')) || { phase: 1, ingPool: [], ctryPool: [], selIng: null, selCtry: null };
-    let tempSel = null; // Track unsaved selection
+    let history = JSON.parse(localStorage.getItem('potluck_history')) || [];
+    let finalized = localStorage.getItem('potluck_final') ? JSON.parse(localStorage.getItem('potluck_final')) : null;
+    let pendingSelection = null; 
 
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
     function drawWheel() {
-        ctx.clearRect(0, 0, 200, 200);
-        ctx.fillStyle = (state.phase === 2) ? "#2980b9" : "#e67e22";
-        ctx.beginPath(); ctx.arc(100, 100, 95, 0, Math.PI * 2); ctx.fill();
-    }
-
-    function spin() {
-        canvas.classList.add('spinning');
-        setTimeout(() => {
-            canvas.classList.remove('spinning');
-            if (state.phase === 1) {
-                const i = ingredients[Math.floor(Math.random() * ingredients.length)];
-                if (!state.ingPool.includes(i)) state.ingPool.push(i);
-            } else {
-                const c = countries[Math.floor(Math.random() * countries.length)];
-                if (!state.ctryPool.includes(c)) state.ctryPool.push(c);
-            }
-            save(); updateUI();
-        }, 1000);
-    }
-
-    function save() { localStorage.setItem('potluck_state', JSON.stringify(state)); }
-
-    function updateUI() {
-        const ui = document.getElementById("uiArea");
-        const title = document.getElementById("title");
-        const subt = document.getElementById("subt");
-        drawWheel();
-
-        // Phase 1 & 2: Spinning
-        if (state.phase < 3) {
-            const list = state.phase === 1 ? state.ingPool : state.ctryPool;
-            title.innerText = state.phase === 1 ? "Step 1: Ingredients" : "Step 2: Cuisines";
-            subt.innerText = `Collected ${list.length}/3`;
-            
-            ui.innerHTML = list.map(item => `<div class="option-btn">${item}</div>`).join('');
-            if (list.length < 3) ui.innerHTML += `<button class="option-btn" onclick="spin()">🎰 Spin for ${state.phase === 1 ? 'Ingredient' : 'Country'}</button>`;
-            else ui.innerHTML += `<button class="confirm-btn" onclick="state.phase++; save(); updateUI();">Move to Next Step ➔</button>`;
-        } 
-        // Phase 3: Final Selection
-        else if (!state.selIng || !state.selCtry) {
-            title.innerText = "Final Selection";
-            subt.innerText = !state.selIng ? "Pick your Ingredient:" : "Pick your Country:";
-            const choices = !state.selIng ? state.ingPool : state.ctryPool;
-            
-            ui.innerHTML = choices.map(item => 
-                `<button class="option-btn ${tempSel === item ? 'selected' : ''}" onclick="tempSel='${item}'; updateUI();">${item}</button>`
-            ).join('');
-            
-            if (tempSel) ui.innerHTML += `<button class="confirm-btn" onclick="${!state.selIng ? 'state.selIng=tempSel' : 'state.selCtry=tempSel'}; tempSel=null; save(); updateUI();">Confirm Choice ✅</button>`;
-        } 
-        // Result
-        else {
-            title.innerText = "Your Potluck Dish";
-            ui.innerHTML = `<span class="highlight">${state.selCtry} ${state.selIng}</span>
-            <button class="confirm-btn" onclick="localStorage.clear(); location.reload();">Start Over</button>`;
+        const arc = Math.PI * 2 / 12;
+        ctx.clearRect(0, 0, 280, 280);
+        for (let i = 0; i < 12; i++) {
+            ctx.fillStyle = ["#e67e22", "#d35400", "#f39c12", "#e74c3c"][i % 4];
+            ctx.beginPath();
+            ctx.moveTo(140, 140);
+            ctx.arc(140, 140, 135, i * arc, (i + 1) * arc);
+            ctx.fill();
         }
     }
 
+    function spin() {
+        if (history.length >= 3) return;
+        const usedCountries = history.map(h => h.country);
+        const usedIngredients = history.map(h => h.ingredient);
+        let found = false;
+        while (!found) {
+            const c = countries[Math.floor(Math.random() * countries.length)];
+            const i = ingredients[Math.floor(Math.random() * ingredients.length)];
+            if (!usedCountries.includes(c) && !usedIngredients.includes(i)) {
+                history.push({ country: c, ingredient: i });
+                found = true;
+            }
+        }
+        localStorage.setItem('potluck_history', JSON.stringify(history));
+        updateUI();
+    }
+
+    function stageSelection(index) {
+        pendingSelection = index;
+        updateUI();
+    }
+
+    function confirmSelection() {
+        finalized = history[pendingSelection];
+        localStorage.setItem('potluck_final', JSON.stringify(finalized));
+        updateUI();
+    }
+
+    function updateUI() {
+        if (finalized) {
+            document.getElementById("canvas").style.display = "none";
+            document.getElementById("subt").innerHTML = "Your selection is locked in!";
+            const url = `https://www.google.com/search?q=${encodeURIComponent(finalized.country + " " + finalized.ingredient + " recipe")}`;
+            const shareText = `I rolled Potluck Roulette! My theme is: ${finalized.country} ${finalized.ingredient}.`;
+            
+            document.getElementById("resultsArea").innerHTML = `
+                <span class="highlight">${finalized.country} ${finalized.ingredient}</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('${shareText}')">📋 Copy to Share</button>
+                <button class="recipe-btn" onclick="window.open('${url}', '_blank')">🔍 Search Recipes ↗</button>
+            `;
+            document.getElementById("actionArea").innerHTML = "";
+            return;
+        }
+
+        drawWheel();
+        let html = `<table class="results-table"><tbody>`;
+        history.forEach((res, idx) => {
+            const isSelected = (pendingSelection === idx);
+            const style = isSelected ? 'style="border: 3px solid #2ecc71; background: #e8f8f0;"' : '';
+            html += `<tr class="option-row" ${style} onclick="stageSelection(${idx})">
+                        <td>${res.country}</td><td>${res.ingredient}</td>
+                     </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById("resultsArea").innerHTML = html;
+
+        if (pendingSelection !== null) {
+            document.getElementById("subt").innerText = "Tap Confirm to lock in your choice.";
+            document.getElementById("actionArea").innerHTML = 
+                `<button style="background-color: #2ecc71;" onclick="confirmSelection()">✅ Confirm ${history[pendingSelection].country}</button>`;
+        } else if (history.length < 3) {
+            document.getElementById("subt").innerText = `Spin again or tap a row to select. (${3 - history.length} spins left)`;
+            document.getElementById("actionArea").innerHTML = `<button id="spinBtn" onclick="spin()">SPIN AGAIN</button>`;
+        } else {
+            document.getElementById("subt").innerText = "All spins used. Tap a row above to select!";
+            document.getElementById("actionArea").innerHTML = "";
+        }
+    }
     updateUI();
 </script>
 </body>
