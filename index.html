@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Potluck Map Roulette</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #2c3e50; display: flex; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; max-width: 500px; width: 100%; box-sizing: border-box; }
+        h1 { color: #2c3e50; margin-top: 0; font-size: 26px; }
+        p#subt { color: #7f8c8d; font-size: 14px; margin: -5px 0 15px 0; }
+        #map-container { position: relative; width: 100%; height: 200px; background: #ecf0f1; border-radius: 10px; margin: 15px 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        
+        /* Map pin animations */
+        .pin { position: absolute; width: 12px; height: 12px; background: #e74c3c; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: all 0.3s ease; animation: drop 0.5s ease-out; }
+        .pin.selected-pin { background: #f1c40f; transform: scale(1.5); box-shadow: 0 0 12px #f1c40f; z-index: 10; }
+        @keyframes drop { 0% { transform: translateY(-100px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        
+        /* Option buttons styling */
+        .option-btn { display: block; width: 100%; margin: 8px 0; padding: 14px; border: 2px solid #bdc3c7; border-radius: 12px; background: white; cursor: pointer; font-weight: bold; color: #7f8c8d; font-size: 16px; transition: 0.2s; }
+        .option-btn:hover { background: #f8f9fa; border-color: #95a5a6; }
+        .option-btn.selected { border-color: #f1c40f; background: #fef9e7; color: #d35400; }
+        
+        /* Action buttons styling */
+        button.action-btn { padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; width: 100%; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .spin-color { background-color: #2980b9; }
+        .spin-color:hover { background-color: #3498db; }
+        .confirm-color { background-color: #27ae60; animation: pulse 1.5s infinite; }
+        .confirm-color:hover { background-color: #2ecc71; }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); }
+        }
+        
+        .highlight { color: #27ae60; font-weight: bold; font-size: 26px; display: block; margin: 15px 0; }
+        .recipe-btn { background-color: #3498db; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1 id="title">Step 1: Ingredient</h1>
+    <p id="subt">Spin 3 times to discover your options.</p>
+    <div id="visualArea"></div>
+    <div id="resultsArea"></div>
+    <div id="actionArea"></div>
+    
+    <div style="margin-top: 30px;">
+        <button onclick="localStorage.clear(); location.reload();" style="background:none; border:1px solid #7f8c8d; color:#7f8c8d; font-size: 10px; cursor:pointer; padding: 4px 8px; border-radius: 5px;">Reset Application</button>
+    </div>
+</div>
+
+<script>
+    const mapCoords = {
+        "Italian": {x: 48, y: 35}, "Mexican": {x: 20, y: 45}, "Japanese": {x: 88, y: 35},
+        "Indian": {x: 70, y: 45}, "French": {x: 45, y: 32}, "Thai": {x: 78, y: 48},
+        "Greek": {x: 52, y: 36}, "Spanish": {x: 42, y: 36}, "Chinese": {x: 80, y: 35},
+        "Jamaican": {x: 25, y: 52}, "Peruvian": {x: 30, y: 70}, "Vietnamese": {x: 80, y: 45},
+        "Moroccan": {x: 40, y: 40}, "Brazilian": {x: 35, y: 70}, "South Korean": {x: 85, y: 32},
+        "Malaysian": {x: 78, y: 55}, "Indonesian": {x: 80, y: 60}, "Russian": {x: 65, y: 20},
+        "Argentinian": {x: 32, y: 80}, "American": {x: 15, y: 30}, "German": {x: 48, y: 28}
+    };
+
+    const ingredients = ["Rice", "Potato", "Tomato", "Nuts", "Chicken", "Beef", "Onion", "Cheese", "Citrus", "Apple", "Pork", "Tofu", "Beans", "Eggplant", "Corn", "Pastry", "Egg", "Honey", "Garlic", "Peppers", "Butter", "Bread"];
+    const countries = Object.keys(mapCoords);
+
+    let state = JSON.parse(localStorage.getItem('potluck_state')) || { 
+        step: 1, 
+        ingHistory: [], 
+        countryHistory: [], 
+        finalIng: null, 
+        finalCountry: null 
+    };
+
+    // Keep track of what the user currently clicked on, but has not confirmed yet
+    let temporarySelection = null;
+
+    function spin() {
+        if (state.step === 1 && state.ingHistory.length < 3) {
+            let found = false;
+            while (!found) {
+                const i = ingredients[Math.floor(Math.random() * ingredients.length)];
+                if (!state.ingHistory.includes(i)) { state.ingHistory.push(i); found = true; }
+            }
+        } else if (state.step === 2 && state.countryHistory.length < 3) {
+            let found = false;
+            while (!found) {
+                const c = countries[Math.floor(Math.random() * countries.length)];
+                if (!state.countryHistory.includes(c)) { state.countryHistory.push(c); found = true; }
+            }
+        }
+        temporarySelection = null; // Clear selections on spin
+        saveState();
+        updateUI();
+    }
+
+    // Handles the temporary selection highlight
+    function tapOption(val) {
+        temporarySelection = val;
+        updateUI();
+    }
+
+    // Locks the action down and saves when 'Confirm' is pushed
+    function confirmSelection() {
+        if (!temporarySelection) return;
+        
+        if (state.step === 1) state.finalIng = temporarySelection;
+        else state.finalCountry = temporarySelection;
+        
+        state.step++;
+        temporarySelection = null; // reset for next phase
+        saveState();
+        updateUI();
+    }
+
+    function saveState() {
+        localStorage.setItem('potluck_state', JSON.stringify(state));
+    }
+
+    function updateUI() {
+        const visual = document.getElementById("visualArea");
+        const results = document.getElementById("resultsArea");
+        const action = document.getElementById("actionArea");
+        const subt = document.getElementById("subt");
+        
+        // Step 3: Game Over / Results
+        if (state.step === 3) {
+            document.getElementById("title").innerText = "Your Final Choice!";
+            subt.innerText = "Enjoy your potluck concept:";
+            visual.innerHTML = `<div style="font-size: 55px; margin: 15px 0;">✨🍽️✨</div>`;
+            const url = `https://www.google.com/search?q=${encodeURIComponent(state.finalCountry + " " + state.finalIng + " recipe")}`;
+            results.innerHTML = `<span class="highlight">${state.finalCountry} ${state.finalIng}</span>`;
+            action.innerHTML = `<button class="action-btn recipe-btn" onclick="window.open('${url}', '_blank')">🔍 Find Recipes ↗</button>`;
+            return;
+        }
+
+        // Determine current setup based on phase
+        const isStepOne = state.step === 1;
+        document.getElementById("title").innerText = isStepOne ? "Step 1: Ingredient" : "Step 2: Cuisine";
+        subt.innerText = temporarySelection ? "Looks good! Press confirm below." : `Spin up to 3 times, then tap your favorite.`;
+        
+        // Dynamic Graphics Render
+        if (isStepOne) {
+            visual.innerHTML = `<div style="font-size: 50px; margin: 15px 0;">🎲</div>`;
+        } else {
+            visual.innerHTML = `<div id="map-container"><img src="https://upload.wikimedia.org/wikipedia/commons/8/83/World_Map_Blank.svg" style="width:120%; opacity:0.35; pointer-events:none;"></div>`;
+            state.countryHistory.forEach(c => {
+                const pin = document.createElement("div");
+                pin.className = `pin ${temporarySelection === c ? 'selected-pin' : ''}`;
+                pin.style.left = mapCoords[c].x + "%";
+                pin.style.top = mapCoords[c].y + "%";
+                document.getElementById("map-container").appendChild(pin);
+            });
+        }
+
+        // Generate Item Option Cards
+        let currentList = isStepOne ? state.ingHistory : state.countryHistory;
+        let html = "";
+        currentList.forEach(item => {
+            const isSelected = temporarySelection === item;
+            html += `<button class="option-btn ${isSelected ? 'selected' : ''}" onclick="tapOption('${item}')">${item} ${isSelected ? '✓' : ''}</button>`;
+        });
+        results.innerHTML = html;
+
+        // Smart Conditional Controls Area
+        if (temporarySelection) {
+            action.innerHTML = `<button class="action-btn confirm-color" onclick="confirmSelection()">Confirm Selection 👍</button>`;
+        } else if (currentList.length < 3) {
+            action.innerHTML = `<button class="action-btn spin-color" onclick="spin()">SPIN WHEEL (${3 - currentList.length} LEFT)</button>`;
+        } else {
+            action.innerHTML = `<p style="color:#e74c3c; font-weight:bold; font-size:14px; margin-top:15px;">Choose one of the options above to continue.</p>`;
+        }
+    }
+    
+    updateUI();
+</script>
+</body>
+</html>
