@@ -4,26 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pentridge Potluck Roulette</title>
+    <!-- Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #ff9a9e 0%, #ff6a00 100%); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 450px; width: 100%; box-sizing: border-box; }
-        h1 { color: #d35400; margin-top: 0; font-size: 26px; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            /* Vaporwave/Retro-Futuristic Gradient */
+            background: linear-gradient(45deg, #ff9a9e, #fad0c4, #ff6a00, #ff9a9e);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; 
+        }
+        @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; max-width: 450px; width: 100%; box-sizing: border-box; border: 4px solid #fff; }
+        h1 { color: #d35400; margin-top: 0; font-size: 26px; text-shadow: 2px 2px 0px rgba(255,255,255,0.8); letter-spacing: -0.5px; }
         p { color: #555; line-height: 1.6; }
         
-        #wheelCanvas { border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 10px 0; transition: transform 1s ease-out; display: block; margin-left: auto; margin-right: auto; }
-        .spinning { transform: rotate(1080deg); }
+        #wheelCanvas { border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 10px 0; transition: transform 1s ease-out; display: block; margin-left: auto; margin-right: auto; cursor: pointer; }
+        .spinning { transform: rotate(1440deg); }
         
-        .list-container { display: flex; flex-direction: column; gap: 8px; margin: 15px auto; width: 200px; }
+        .list-container { display: flex; flex-direction: column; gap: 8px; margin: 15px auto; width: 220px; }
         .option-item { padding: 10px; border: 2px solid #e67e22; border-radius: 10px; font-weight: bold; color: #e67e22; background: #fffaf0; }
         
         .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
-        .col { display: flex; flex-direction: column; gap: 8px; }
+        .col { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
         .select-btn { padding: 10px; border: 2px solid #e67e22; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #e67e22; }
         .select-btn.active { background: #e67e22; color: white; }
         
-        .confirm-btn { background-color: #27ae60; color: white; padding: 15px; border: none; border-radius: 25px; width: 100%; font-weight: bold; margin-top: 10px; animation: pulse 1.5s infinite; cursor: pointer; }
-        .confirm-btn:disabled { background-color: #bdc3c7; animation: none; cursor: not-allowed; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); } }
+        .confirm-btn { background-color: #27ae60; color: white; padding: 15px; border: none; border-radius: 25px; width: 100%; font-weight: bold; margin-top: 10px; cursor: pointer; transition: transform 0.2s; }
+        .confirm-btn:active { transform: scale(0.95); }
+        .confirm-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
         .highlight { color: #d35400; font-weight: bold; font-size: 24px; display: block; margin: 15px 0; }
     </style>
 </head>
@@ -34,16 +45,12 @@
     </div>
 
 <script>
-    const ingredientsList = ["Rice", "Potato", "Tomato", "Nuts", "Chicken", "Beef", "Onion", "Cheese", "Citrus", "Apple", "Pork", "Tofu"];
-    const countriesList = ["Italian", "Mexican", "Japanese", "Indian", "French", "Thai", "Greek", "Spanish", "Chinese", "Jamaican", "Peruvian", "Vietnamese"];
+    const ingredientsList = ["Rice 🍚", "Potato 🥔", "Tomato 🍅", "Nuts 🥜", "Chicken 🍗", "Beef 🥩", "Onion 🧅", "Cheese 🧀", "Citrus 🍋", "Apple 🍎", "Pork 🥓", "Tofu 🫛"];
+    const countriesList = ["Italian 🇮🇹", "Mexican 🇲🇽", "Japanese 🇯🇵", "Indian 🇮🇳", "French 🇫🇷", "Thai 🇹🇭", "Greek 🇬🇷", "Spanish 🇪🇸", "Chinese 🇨🇳", "Jamaican 🇯🇲", "Peruvian 🇵🇪", "Vietnamese 🇻🇳"];
 
     let state = JSON.parse(localStorage.getItem('potluck_v3')) || { phase: 0, ings: [], ctries: [], final: null, tempIng: null, tempCtry: null };
 
-    document.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'r') {
-            if (confirm("Reset Potluck Roulette?")) { localStorage.clear(); location.reload(); }
-        }
-    });
+    function vibrate() { if (navigator.vibrate) navigator.vibrate(50); }
 
     function drawWheel() {
         const canvas = document.getElementById("wheelCanvas");
@@ -52,25 +59,27 @@
         const arc = Math.PI * 2 / 12;
         ctx.clearRect(0, 0, 280, 280);
         for (let i = 0; i < 12; i++) {
-            ctx.fillStyle = (state.phase === 1) 
-                ? ["#e67e22", "#d35400", "#f39c12", "#e74c3c"][i % 4] 
-                : ["#3498db", "#2980b9", "#1abc9c", "#16a085"][i % 4];
+            ctx.fillStyle = (state.phase === 1) ? ["#e67e22", "#d35400", "#f39c12", "#e74c3c"][i % 4] : ["#3498db", "#2980b9", "#1abc9c", "#16a085"][i % 4];
             ctx.beginPath(); ctx.moveTo(140, 140);
             ctx.arc(140, 140, 135, i * arc, (i + 1) * arc); ctx.fill();
             ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
         }
+        // Shiba Inu Center
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(140, 140, 25, 0, Math.PI * 2); ctx.fill();
+        ctx.font = "24px Arial"; ctx.textAlign = "center"; ctx.fillText("🐕", 140, 149);
     }
 
     function spin() {
-        const canvas = document.getElementById("wheelCanvas");
         const btn = document.getElementById("spinBtn");
-        
+        const canvas = document.getElementById("wheelCanvas");
+        vibrate();
         btn.disabled = true;
+        btn.innerText = "Spinning...";
         canvas.classList.add("spinning");
 
         setTimeout(() => {
             canvas.classList.remove("spinning");
-            
             if (state.phase === 1) {
                 let i = ingredientsList[Math.floor(Math.random() * ingredientsList.length)];
                 if (!state.ings.includes(i)) state.ings.push(i);
@@ -78,48 +87,51 @@
                 let c = countriesList[Math.floor(Math.random() * countriesList.length)];
                 if (!state.ctries.includes(c)) state.ctries.push(c);
             }
-            
-            save(); 
-            updateUI();
+            save(); updateUI();
         }, 1000);
+    }
+
+    function copyResult() {
+        navigator.clipboard.writeText(state.final);
+        const btn = document.getElementById("copyBtn");
+        btn.innerText = "Copied! ✅";
+        vibrate();
     }
 
     function save() { localStorage.setItem('potluck_v3', JSON.stringify(state)); }
 
     function updateUI() {
         const ui = document.getElementById("uiArea");
-        
         if (state.phase === 0) {
             ui.innerHTML = `<h1>Pentridge Potluck Party Roulette</h1>
-            <p>Welcome! Let's decide your contribution. We will spin to collect 3 ingredients and 3 cuisines, then you will choose your final dish combination.</p>
-            <button class="confirm-btn" onclick="state.phase++; updateUI();">Start Roulette ➔</button>`;
+            <p>Welcome! Let's decide your contribution. We will spin for 3 ingredients and 3 cuisines, then you choose your dish!</p>
+            <button class="confirm-btn" onclick="state.phase++; vibrate(); updateUI();">Start Roulette ➔</button>`;
         } 
         else if (state.phase < 3) {
             const list = state.phase === 1 ? state.ings : state.ctries;
             ui.innerHTML = `<h1>${state.phase === 1 ? "Step 1: Ingredients" : "Step 2: Cuisines"}</h1>
             <p>Collected ${list.length}/3</p>
             <canvas id="wheelCanvas" width="280" height="280"></canvas>
-            <div class="list-container">` + list.map(item => `<div class="option-item">${item}</div>`).join('') + `</div>`;
-            
+            <div class="list-container">${list.map(item => `<div class="option-item">${item}</div>`).join('')}</div>`;
             requestAnimationFrame(drawWheel);
-
-            if (list.length < 3) ui.innerHTML += `<button id="spinBtn" class="confirm-btn" style="animation:none; background:#e67e22" onclick="spin()">🎰 Spin Wheel</button>`;
-            else ui.innerHTML += `<button class="confirm-btn" onclick="state.phase++; save(); updateUI();">Move to Next Step ➔</button>`;
+            if (list.length < 3) ui.innerHTML += `<button id="spinBtn" class="confirm-btn" style="background:#e67e22" onclick="spin()">🎰 Spin Wheel</button>`;
+            else ui.innerHTML += `<button class="confirm-btn" onclick="state.phase++; vibrate(); save(); updateUI();">Move to Next Step ➔</button>`;
         } 
         else if (!state.final) {
             ui.innerHTML = `<h1>Final Decision</h1>
-            <p>Select one from each column to lock in your dish:</p>
+            <p>Select one from each column:</p>
             <div class="matrix">
                 <div class="col"><strong>Ingredients</strong>${state.ings.map(i => `<button class="select-btn ${state.tempIng===i?'active':''}" onclick="state.tempIng='${i}'; updateUI();">${i}</button>`).join('')}</div>
                 <div class="col"><strong>Cuisines</strong>${state.ctries.map(c => `<button class="select-btn ${state.tempCtry===c?'active':''}" onclick="state.tempCtry='${c}'; updateUI();">${c}</button>`).join('')}</div>
             </div>`;
-            
-            if (state.tempIng && state.tempCtry) ui.innerHTML += `<button class="confirm-btn" onclick="state.final = state.tempCtry + ' ' + state.tempIng; save(); updateUI();">Lock Selection ✅</button>`;
+            if (state.tempIng && state.tempCtry) ui.innerHTML += `<button class="confirm-btn" onclick="state.final = state.tempCtry + ' ' + state.tempIng; vibrate(); save(); updateUI();">Lock Selection ✅</button>`;
         } 
         else {
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             ui.innerHTML = `<h1>Your Potluck Dish</h1>
             <span class="highlight">${state.final}</span>
-            <p>Enjoy your cooking!</p>
+            <p style="font-size: 14px; color: #7f8c8d;">Don't forget to save this result!</p>
+            <button id="copyBtn" class="confirm-btn" style="background:#e67e22" onclick="copyResult()">📋 Copy Dish Name</button>
             <button class="confirm-btn" style="background:#3498db" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(state.final + ' recipe')}', '_blank')">🔍 Search Recipes</button>`;
         }
     }
