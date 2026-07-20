@@ -10,7 +10,7 @@
         h1 { color: #d35400; margin-top: 0; font-size: 26px; }
         p { color: #555; line-height: 1.6; }
         
-        #canvas { border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 10px 0; transition: transform 1s ease-out; }
+        #wheelCanvas { border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 10px 0; transition: transform 1s ease-out; display: block; margin-left: auto; margin-right: auto; }
         .spinning { transform: rotate(1080deg); }
         
         .list-container { display: flex; flex-direction: column; gap: 8px; margin: 15px auto; width: 200px; }
@@ -22,6 +22,7 @@
         .select-btn.active { background: #e67e22; color: white; }
         
         .confirm-btn { background-color: #27ae60; color: white; padding: 15px; border: none; border-radius: 25px; width: 100%; font-weight: bold; margin-top: 10px; animation: pulse 1.5s infinite; cursor: pointer; }
+        .confirm-btn:disabled { background-color: #bdc3c7; animation: none; cursor: not-allowed; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); } }
         .highlight { color: #d35400; font-weight: bold; font-size: 24px; display: block; margin: 15px 0; }
     </style>
@@ -38,15 +39,15 @@
 
     let state = JSON.parse(localStorage.getItem('potluck_v3')) || { phase: 0, ings: [], ctries: [], final: null, tempIng: null, tempCtry: null };
 
-    const ctx = document.createElement('canvas').getContext('2d'); // Dummy context for drawing logic
-
     document.addEventListener('keydown', (e) => {
         if (e.key.toLowerCase() === 'r') {
             if (confirm("Reset Potluck Roulette?")) { localStorage.clear(); location.reload(); }
         }
     });
 
-    function drawWheel(canvas) {
+    function drawWheel() {
+        const canvas = document.getElementById("wheelCanvas");
+        if (!canvas) return;
         const ctx = canvas.getContext("2d");
         const arc = Math.PI * 2 / 12;
         ctx.clearRect(0, 0, 280, 280);
@@ -56,25 +57,30 @@
                 : ["#3498db", "#2980b9", "#1abc9c", "#16a085"][i % 4];
             ctx.beginPath(); ctx.moveTo(140, 140);
             ctx.arc(140, 140, 135, i * arc, (i + 1) * arc); ctx.fill();
+            ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
         }
     }
 
     function spin() {
-        const canvas = document.getElementById("canvas");
+        const canvas = document.getElementById("wheelCanvas");
         const btn = document.getElementById("spinBtn");
-        canvas.classList.add("spinning");
+        
         btn.disabled = true;
+        canvas.classList.add("spinning");
 
         setTimeout(() => {
             canvas.classList.remove("spinning");
-            if (state.phase === 1 && state.ings.length < 3) {
+            
+            if (state.phase === 1) {
                 let i = ingredientsList[Math.floor(Math.random() * ingredientsList.length)];
                 if (!state.ings.includes(i)) state.ings.push(i);
-            } else if (state.phase === 2 && state.ctries.length < 3) {
+            } else if (state.phase === 2) {
                 let c = countriesList[Math.floor(Math.random() * countriesList.length)];
                 if (!state.ctries.includes(c)) state.ctries.push(c);
             }
-            save(); updateUI();
+            
+            save(); 
+            updateUI();
         }, 1000);
     }
 
@@ -83,26 +89,23 @@
     function updateUI() {
         const ui = document.getElementById("uiArea");
         
-        // PHASE 0: TITLE PAGE
         if (state.phase === 0) {
             ui.innerHTML = `<h1>Pentridge Potluck Party Roulette</h1>
             <p>Welcome! Let's decide your contribution. We will spin to collect 3 ingredients and 3 cuisines, then you will choose your final dish combination.</p>
             <button class="confirm-btn" onclick="state.phase++; updateUI();">Start Roulette ➔</button>`;
         } 
-        // PHASE 1 & 2: WHEELS
         else if (state.phase < 3) {
             const list = state.phase === 1 ? state.ings : state.ctries;
             ui.innerHTML = `<h1>${state.phase === 1 ? "Step 1: Ingredients" : "Step 2: Cuisines"}</h1>
             <p>Collected ${list.length}/3</p>
-            <canvas id="canvas" width="280" height="280"></canvas>
+            <canvas id="wheelCanvas" width="280" height="280"></canvas>
             <div class="list-container">` + list.map(item => `<div class="option-item">${item}</div>`).join('') + `</div>`;
             
-            drawWheel(document.getElementById("canvas"));
+            requestAnimationFrame(drawWheel);
 
             if (list.length < 3) ui.innerHTML += `<button id="spinBtn" class="confirm-btn" style="animation:none; background:#e67e22" onclick="spin()">🎰 Spin Wheel</button>`;
             else ui.innerHTML += `<button class="confirm-btn" onclick="state.phase++; save(); updateUI();">Move to Next Step ➔</button>`;
         } 
-        // PHASE 3: FINAL SELECTION
         else if (!state.final) {
             ui.innerHTML = `<h1>Final Decision</h1>
             <p>Select one from each column to lock in your dish:</p>
@@ -113,7 +116,6 @@
             
             if (state.tempIng && state.tempCtry) ui.innerHTML += `<button class="confirm-btn" onclick="state.final = state.tempCtry + ' ' + state.tempIng; save(); updateUI();">Lock Selection ✅</button>`;
         } 
-        // RESULT
         else {
             ui.innerHTML = `<h1>Your Potluck Dish</h1>
             <span class="highlight">${state.final}</span>
