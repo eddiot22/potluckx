@@ -2,25 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Potluck Map Roulette</title>
+    <title>Potluck Roulette</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #2c3e50; display: flex; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; max-width: 500px; width: 100%; box-sizing: border-box; }
         h1 { color: #2c3e50; margin-top: 0; font-size: 26px; }
         p#subt { color: #7f8c8d; font-size: 14px; margin: -5px 0 15px 0; }
         
-        #map-container { position: relative; width: 100%; height: 200px; background: #ecf0f1; border-radius: 10px; margin: 15px 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        #wheel { width: 250px; height: 250px; margin: 15px auto; border-radius: 50%; border: 5px solid #bdc3c7; background: #ecf0f1; display: block; }
         
-        /* Map pin animations */
-        .pin { position: absolute; width: 12px; height: 12px; background: #e74c3c; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: all 0.3s ease; animation: drop 0.5s ease-out; }
-        .pin.selected-pin { background: #f1c40f; transform: scale(1.5); box-shadow: 0 0 12px #f1c40f; z-index: 10; }
-        @keyframes drop { 0% { transform: translateY(-100px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
-        
-        /* Buttons */
         .option-btn { display: block; width: 100%; margin: 8px 0; padding: 14px; border: 2px solid #bdc3c7; border-radius: 12px; background: white; cursor: pointer; font-weight: bold; color: #7f8c8d; font-size: 16px; transition: 0.2s; }
         .option-btn:hover { background: #f8f9fa; border-color: #95a5a6; }
         .option-btn.selected { border-color: #f1c40f; background: #fef9e7; color: #d35400; }
-        button.action-btn { padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; width: 100%; cursor: pointer; margin-top: 10px; }
+        
+        button.action-btn { padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 25px; width: 100%; cursor: pointer; margin-top: 10px; transition: 0.2s; }
         .spin-color { background-color: #2980b9; }
         .confirm-color { background-color: #27ae60; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.5); } 70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); } 100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); } }
@@ -32,31 +27,38 @@
 <div class="card">
     <h1 id="title">Step 1: Ingredient</h1>
     <p id="subt">Spin 3 times to discover your options.</p>
-    <div id="visualArea"></div>
+    <canvas id="wheel"></canvas>
     <div id="resultsArea"></div>
     <div id="actionArea"></div>
     
     <div style="margin-top: 30px;">
-        <button onclick="localStorage.clear(); location.reload();" style="background:none; border:1px solid #7f8c8d; color:#7f8c8d; font-size: 10px; cursor:pointer; padding: 4px 8px; border-radius: 5px;">Reset Application</button>
+        <button onclick="localStorage.clear(); location.reload();" style="background:none; border:1px solid #7f8c8d; color:#7f8c8d; font-size: 10px; cursor:pointer;">Reset Application</button>
     </div>
 </div>
 
 <script>
-    const mapCoords = {
-        "Italian": {x: 50, y: 35}, "Mexican": {x: 20, y: 45}, "Japanese": {x: 88, y: 35},
-        "Indian": {x: 70, y: 45}, "French": {x: 47, y: 32}, "Thai": {x: 78, y: 48},
-        "Greek": {x: 53, y: 36}, "Spanish": {x: 44, y: 36}, "Chinese": {x: 80, y: 35},
-        "Jamaican": {x: 25, y: 52}, "Peruvian": {x: 30, y: 70}, "Vietnamese": {x: 80, y: 45},
-        "Moroccan": {x: 42, y: 40}, "Brazilian": {x: 35, y: 70}, "South Korean": {x: 85, y: 32},
-        "Malaysian": {x: 78, y: 55}, "Indonesian": {x: 80, y: 60}, "Russian": {x: 65, y: 20},
-        "Argentinian": {x: 32, y: 80}, "American": {x: 15, y: 30}, "German": {x: 49, y: 28}
-    };
-
     const ingredients = ["Rice", "Potato", "Tomato", "Nuts", "Chicken", "Beef", "Onion", "Cheese", "Citrus", "Apple", "Pork", "Tofu", "Beans", "Eggplant", "Corn", "Pastry", "Egg", "Honey", "Garlic", "Peppers", "Butter", "Bread"];
-    const countries = Object.keys(mapCoords);
+    const countries = ["Italian", "Mexican", "Japanese", "Indian", "French", "Thai", "Greek", "Spanish", "Chinese", "Jamaican", "Peruvian", "Vietnamese", "Moroccan", "Brazilian", "South Korean", "Malaysian", "Indonesian", "Russian", "Argentinian", "American", "German"];
 
     let state = JSON.parse(localStorage.getItem('potluck_state')) || { step: 1, ingHistory: [], countryHistory: [], finalIng: null, finalCountry: null };
     let temporarySelection = null;
+
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+
+    function drawWheel() {
+        const items = (state.step === 1) ? ingredients : countries;
+        const slice = (2 * Math.PI) / items.length;
+        ctx.clearRect(0, 0, 250, 250);
+        
+        items.forEach((item, i) => {
+            ctx.beginPath();
+            ctx.moveTo(125, 125);
+            ctx.arc(125, 125, 120, i * slice, (i + 1) * slice);
+            ctx.fillStyle = (i % 2 === 0) ? (state.step === 1 ? "#3498db" : "#e67e22") : (state.step === 1 ? "#2980b9" : "#d35400");
+            ctx.fill();
+        });
+    }
 
     function spin() {
         if (state.step === 1 && state.ingHistory.length < 3) {
@@ -72,7 +74,7 @@
                 if (!state.countryHistory.includes(c)) { state.countryHistory.push(c); found = true; }
             }
         }
-        temporarySelection = null; 
+        temporarySelection = null;
         saveState();
         updateUI();
     }
@@ -92,40 +94,23 @@
     function saveState() { localStorage.setItem('potluck_state', JSON.stringify(state)); }
 
     function updateUI() {
-        const visual = document.getElementById("visualArea");
+        drawWheel();
         const results = document.getElementById("resultsArea");
         const action = document.getElementById("actionArea");
         const subt = document.getElementById("subt");
         
         if (state.step === 3) {
             document.getElementById("title").innerText = "Your Final Choice!";
-            visual.innerHTML = `<div style="font-size: 55px; margin: 15px 0;">✨🍽️✨</div>`;
-            const url = `https://www.google.com/search?q=${encodeURIComponent(state.finalCountry + " " + state.finalIng + " recipe")}`;
+            document.getElementById("wheel").style.display = "none";
             results.innerHTML = `<span class="highlight">${state.finalCountry} ${state.finalIng}</span>`;
-            action.innerHTML = `<button class="action-btn" style="background:#3498db" onclick="window.open('${url}', '_blank')">🔍 Find Recipes ↗</button>`;
+            action.innerHTML = `<button class="action-btn" style="background:#3498db" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(state.finalCountry + " " + state.finalIng + " recipe")}', '_blank')">🔍 Find Recipes ↗</button>`;
             return;
         }
 
-        const isStepOne = state.step === 1;
-        document.getElementById("title").innerText = isStepOne ? "Step 1: Ingredient" : "Step 2: Cuisine";
-        subt.innerText = temporarySelection ? "Looks good! Press confirm below." : `Spin up to 3 times, then tap your favorite.`;
-        
-        if (isStepOne) {
-            visual.innerHTML = `<div style="font-size: 50px; margin: 15px 0;">🎲</div>`;
-        } else {
-            // Inline SVG World Map
-            const svgMap = `<svg viewBox="0 0 1000 500" style="width:110%; opacity:0.3; pointer-events:none;"><path fill="#34495e" d="M100,100h800v300H100V100z M200,200c0,50,50,50,50,0s-50-50-50,0 M600,200c0,80,100,80,100,0s-100-80-100,0 M300,350c0,30,50,30,50,0s-50-30-50,0 M750,300c0,40,60,40,60,0s-60-40-60,0 M450,250c0,20,30,20,30,0s-30-20-30,0"/></svg>`;
-            visual.innerHTML = `<div id="map-container">${svgMap}</div>`;
-            state.countryHistory.forEach(c => {
-                const pin = document.createElement("div");
-                pin.className = `pin ${temporarySelection === c ? 'selected-pin' : ''}`;
-                pin.style.left = mapCoords[c].x + "%";
-                pin.style.top = mapCoords[c].y + "%";
-                document.getElementById("map-container").appendChild(pin);
-            });
-        }
+        document.getElementById("title").innerText = state.step === 1 ? "Step 1: Ingredient" : "Step 2: Cuisine";
+        subt.innerText = temporarySelection ? "Looks good! Press confirm below." : `Spin 3 times, then tap your favorite.`;
 
-        let currentList = isStepOne ? state.ingHistory : state.countryHistory;
+        let currentList = (state.step === 1) ? state.ingHistory : state.countryHistory;
         results.innerHTML = currentList.map(item => 
             `<button class="option-btn ${temporarySelection === item ? 'selected' : ''}" onclick="tapOption('${item}')">${item} ${temporarySelection === item ? '✓' : ''}</button>`
         ).join('');
